@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 import vk_api
 import requests
 import os
@@ -9,6 +11,9 @@ path_to_downloaded_albums = 'vk_downloaded_albums'
 path_to_user_data = 'data.txt'
 path_to_albums_list = 'albums_list.txt'
 
+def two_factor():
+    code = input('your 2FA code? ').strip()
+    return code, True
 
 def print_progress(value, end_value, bar_length=20):
     percent = float(value) / end_value
@@ -88,7 +93,7 @@ def fix_illegal_album_title(title):
 
 def main():
     l, p, queries = read_data()
-    vk_session = vk_api.VkApi(l, p)
+    vk_session = vk_api.VkApi(l, p, auth_handler=two_factor)
 
     try:
         vk_session.auth()
@@ -129,19 +134,15 @@ def main():
         print('downloading album: ' + title)
         cnt = 0
         for p in photos:
-            largest_image_width = p['sizes'][0]['width']
-            largest_image_src = p['sizes'][0]['src']
+            max_size_url = ''
+            max_size = 0
+            for s in p['sizes']:
+                if size := s['width'] * s['height'] > max_size:
+                    max_size_url = s['url']
+                    max_size = size
 
-            if largest_image_width == 0:
-                largest_image_src = p['sizes'][p['sizes'].__len__() - 1]['src']
-            else:
-                for size in p['sizes']:
-                    if size['width'] > largest_image_width:
-                        largest_image_width = size['width']
-                        largest_image_src = size['src']
-
-            extension = re.findall(r'\.[\w\d.-]+$', largest_image_src)[0]
-            download_image(largest_image_src, album_path + '/' +
+            extension = re.findall(r'\.[\w\d.-]+$', max_size_url)[0]
+            download_image(max_size_url, album_path + '/' +
                            str(p['id']) + extension)
             cnt += 1
             print_progress(cnt, images_num)
